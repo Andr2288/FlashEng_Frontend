@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { X, Lock, Eye, EyeOff, Loader } from "lucide-react";
-import { axiosInstance } from "../lib/axios.js";
-import toast from "react-hot-toast";
 
 const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
     const [formData, setFormData] = useState({
@@ -29,7 +27,7 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
         if (!formData.newPassword) {
             newErrors.newPassword = "New password is required";
         } else if (formData.newPassword.length < 6) {
-            newErrors.newPassword = "New password must be at least 6 characters";
+            newErrors.newPassword = "Password must be at least 6 characters";
         }
 
         // Confirm password validation
@@ -40,8 +38,7 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
         }
 
         // Check if new password is different from current
-        if (formData.currentPassword && formData.newPassword && 
-            formData.currentPassword === formData.newPassword) {
+        if (formData.currentPassword && formData.newPassword && formData.currentPassword === formData.newPassword) {
             newErrors.newPassword = "New password must be different from current password";
         }
 
@@ -79,34 +76,44 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
 
         try {
             setIsSubmitting(true);
-            
-            await axiosInstance.put("/profile/password", {
+            await onSubmit({
                 currentPassword: formData.currentPassword,
                 newPassword: formData.newPassword
             });
 
-            toast.success("Password changed successfully!");
-            
-            // Reset form
+            // Reset form on success
             setFormData({
                 currentPassword: "",
                 newPassword: "",
                 confirmPassword: ""
             });
-            
-            onSubmit();
-            
         } catch (error) {
             console.error("Password change failed:", error);
-            const errorMessage = error.response?.data?.error || "Failed to change password";
-            setErrors({ general: errorMessage });
+            setErrors({ general: error.message || "Failed to change password" });
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleOverlayClick = (e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && !isSubmitting) {
+            onClose();
+        }
+    };
+
+    const handleClose = () => {
+        if (!isSubmitting) {
+            setFormData({
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: ""
+            });
+            setErrors({});
+            setShowPasswords({
+                current: false,
+                new: false,
+                confirm: false
+            });
             onClose();
         }
     };
@@ -114,8 +121,8 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
     if (!isOpen) return null;
 
     return (
-        <div 
-            className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50"
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
             onClick={handleOverlayClick}
         >
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -123,8 +130,9 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                 <div className="flex items-center justify-between p-6 border-b">
                     <h2 className="text-xl font-semibold text-gray-900">Change Password</h2>
                     <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        onClick={handleClose}
+                        disabled={isSubmitting}
+                        className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                     >
                         <X className="h-6 w-6" />
                     </button>
@@ -142,8 +150,8 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                     <div className="space-y-4">
                         {/* Current Password */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Current Password *
+                            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                                Current Password
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -151,13 +159,15 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                 </div>
                                 <input
                                     type={showPasswords.current ? "text" : "password"}
+                                    id="currentPassword"
                                     name="currentPassword"
                                     value={formData.currentPassword}
                                     onChange={handleInputChange}
-                                    className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                        errors.currentPassword ? 'border-red-300' : 'border-gray-300'
+                                    disabled={isSubmitting}
+                                    className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-50 ${
+                                        errors.currentPassword ? 'border-red-500' : 'border-gray-300'
                                     }`}
-                                    placeholder="Enter your current password"
+                                    placeholder="Enter current password"
                                 />
                                 <button
                                     type="button"
@@ -165,9 +175,9 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                 >
                                     {showPasswords.current ? (
-                                        <EyeOff className="h-5 w-5 text-gray-400" />
+                                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     ) : (
-                                        <Eye className="h-5 w-5 text-gray-400" />
+                                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     )}
                                 </button>
                             </div>
@@ -178,8 +188,8 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
 
                         {/* New Password */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                New Password *
+                            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                                New Password
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -187,13 +197,15 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                 </div>
                                 <input
                                     type={showPasswords.new ? "text" : "password"}
+                                    id="newPassword"
                                     name="newPassword"
                                     value={formData.newPassword}
                                     onChange={handleInputChange}
-                                    className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                        errors.newPassword ? 'border-red-300' : 'border-gray-300'
+                                    disabled={isSubmitting}
+                                    className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-50 ${
+                                        errors.newPassword ? 'border-red-500' : 'border-gray-300'
                                     }`}
-                                    placeholder="Enter your new password"
+                                    placeholder="Enter new password"
                                 />
                                 <button
                                     type="button"
@@ -201,24 +213,24 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                 >
                                     {showPasswords.new ? (
-                                        <EyeOff className="h-5 w-5 text-gray-400" />
+                                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     ) : (
-                                        <Eye className="h-5 w-5 text-gray-400" />
+                                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     )}
                                 </button>
                             </div>
                             {errors.newPassword && (
                                 <p className="mt-1 text-sm text-red-600">{errors.newPassword}</p>
                             )}
-                            <p className="mt-1 text-sm text-gray-500">
-                                Must be at least 6 characters long
+                            <p className="mt-1 text-xs text-gray-500">
+                                Password must be at least 6 characters long
                             </p>
                         </div>
 
-                        {/* Confirm Password */}
+                        {/* Confirm New Password */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Confirm New Password *
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                                Confirm New Password
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -226,13 +238,15 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                 </div>
                                 <input
                                     type={showPasswords.confirm ? "text" : "password"}
+                                    id="confirmPassword"
                                     name="confirmPassword"
                                     value={formData.confirmPassword}
                                     onChange={handleInputChange}
-                                    className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                        errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                                    disabled={isSubmitting}
+                                    className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-50 ${
+                                        errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                                     }`}
-                                    placeholder="Confirm your new password"
+                                    placeholder="Confirm new password"
                                 />
                                 <button
                                     type="button"
@@ -240,9 +254,9 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                 >
                                     {showPasswords.confirm ? (
-                                        <EyeOff className="h-5 w-5 text-gray-400" />
+                                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     ) : (
-                                        <Eye className="h-5 w-5 text-gray-400" />
+                                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                                     )}
                                 </button>
                             </div>
@@ -252,34 +266,28 @@ const ChangePasswordForm = ({ isOpen, onClose, onSubmit }) => {
                         </div>
                     </div>
 
-                    {/* Security Notice */}
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                        <p className="text-sm text-blue-600">
-                            <strong>Security tip:</strong> Use a strong password with a mix of letters, numbers, and special characters.
-                        </p>
-                    </div>
-
-                    {/* Form Actions */}
-                    <div className="flex space-x-3 mt-6 pt-6 border-t">
+                    {/* Buttons */}
+                    <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
                         <button
                             type="button"
-                            onClick={onClose}
-                            className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            onClick={handleClose}
+                            disabled={isSubmitting}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader className="animate-spin h-4 w-4" />
-                                    <span>Changing...</span>
+                                    <Loader className="animate-spin h-4 w-4 mr-2" />
+                                    Changing...
                                 </>
                             ) : (
-                                <span>Change Password</span>
+                                'Change Password'
                             )}
                         </button>
                     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, User, Mail, Phone, Loader, Lock } from "lucide-react";
+import { X, User, Mail, Phone, Loader } from "lucide-react";
 
 const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
     const [formData, setFormData] = useState({
@@ -24,20 +24,13 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
     const validateForm = () => {
         const newErrors = {};
 
-        // Email validation
-        if (!formData.email.trim()) {
-            newErrors.email = "Email is required";
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = "Please enter a valid email address";
-        } else if (formData.email.length > 255) {
-            newErrors.email = "Email must be at most 255 characters";
-        }
-
-        // Phone validation (optional)
-        if (formData.phone && formData.phone.trim()) {
-            if (formData.phone.trim().length > 255) {
-                newErrors.phone = "Phone must be at most 255 characters";
-            }
+        // Name validation (тільки ім'я, email і phone read-only)
+        if (!formData.name.trim()) {
+            newErrors.name = "Full name is required";
+        } else if (formData.name.trim().length < 2) {
+            newErrors.name = "Name must be at least 2 characters";
+        } else if (formData.name.trim().length > 100) {
+            newErrors.name = "Name must be at most 100 characters";
         }
 
         setErrors(newErrors);
@@ -67,7 +60,11 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
 
         try {
             setIsSubmitting(true);
-            await onSubmit(formData);
+            await onSubmit({
+                name: formData.name.trim(),
+                email: formData.email.trim(),
+                phone: formData.phone.trim() || null
+            });
         } catch (error) {
             console.error("Profile update failed:", error);
             setErrors({ general: error.message || "Failed to update profile" });
@@ -77,7 +74,7 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
     };
 
     const handleOverlayClick = (e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && !isSubmitting) {
             onClose();
         }
     };
@@ -86,7 +83,7 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
 
     return (
         <div
-            className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
             onClick={handleOverlayClick}
         >
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -95,7 +92,8 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
                     <h2 className="text-xl font-semibold text-gray-900">Edit Profile</h2>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isSubmitting}
+                        className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                     >
                         <X className="h-6 w-6" />
                     </button>
@@ -111,34 +109,37 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
                     )}
 
                     <div className="space-y-4">
-                        {/* Username (Read-only) */}
+                        {/* Full Name */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Username
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                                Full Name *
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <User className="h-5 w-5 text-gray-400" />
                                 </div>
-                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <Lock className="h-4 w-4 text-gray-400" />
-                                </div>
                                 <input
                                     type="text"
+                                    id="name"
+                                    name="name"
                                     value={formData.name}
-                                    readOnly
-                                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
+                                    onChange={handleInputChange}
+                                    disabled={isSubmitting}
+                                    className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-50 ${
+                                        errors.name ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Enter your full name"
                                 />
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Username cannot be changed for security reasons
-                            </p>
+                            {errors.name && (
+                                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                            )}
                         </div>
 
                         {/* Email */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Email *
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                                Email Address (read-only)
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -146,24 +147,23 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 </div>
                                 <input
                                     type="email"
+                                    id="email"
                                     name="email"
                                     value={formData.email}
-                                    onChange={handleInputChange}
-                                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                        errors.email ? 'border-red-300' : 'border-gray-300'
-                                    }`}
-                                    placeholder="Enter your email"
+                                    disabled={true}
+                                    className="block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                                    placeholder="Enter your email address"
                                 />
                             </div>
-                            {errors.email && (
-                                <p className="text-sm text-red-600 mt-1">{errors.email}</p>
-                            )}
+                            <p className="mt-1 text-xs text-gray-500">
+                                Email changes not supported yet
+                            </p>
                         </div>
 
                         {/* Phone */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Phone Number
+                            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                                Phone Number (read-only)
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -171,38 +171,43 @@ const EditProfileForm = ({ isOpen, onClose, onSubmit, initialData }) => {
                                 </div>
                                 <input
                                     type="tel"
+                                    id="phone"
                                     name="phone"
                                     value={formData.phone}
-                                    onChange={handleInputChange}
-                                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                                        errors.phone ? 'border-red-300' : 'border-gray-300'
-                                    }`}
-                                    placeholder="+380501234567"
+                                    disabled={true}
+                                    className="block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                                    placeholder="Enter your phone number"
                                 />
                             </div>
-                            {errors.phone && (
-                                <p className="text-sm text-red-600 mt-1">{errors.phone}</p>
-                            )}
+                            <p className="mt-1 text-xs text-gray-500">
+                                Phone changes not supported yet
+                            </p>
                         </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="flex justify-end space-x-3 pt-6 border-t mt-6">
+                    {/* Buttons */}
+                    <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
+                            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                         >
-                            {isSubmitting && <Loader className="animate-spin -ml-1 mr-2 h-4 w-4" />}
-                            {isSubmitting ? 'Updating...' : 'Update Profile'}
+                            {isSubmitting ? (
+                                <>
+                                    <Loader className="animate-spin h-4 w-4 mr-2" />
+                                    Updating...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
                         </button>
                     </div>
                 </form>
