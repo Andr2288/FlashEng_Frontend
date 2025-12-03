@@ -3,9 +3,7 @@ import { useAuthStore } from "../store/useAuthStore.js";
 import { axiosInstance } from "../lib/axios.js";
 import FlashCard from "../components/FlashCard.jsx";
 import SearchBar from "../components/SearchBar.jsx";
-import Filters from "../components/Filters.jsx";
-import Pagination from "../components/Pagination.jsx";
-import { Loader, BookOpen, AlertCircle, Brain, RotateCcw, Plus } from "lucide-react";
+import { Loader, BookOpen, AlertCircle, Brain, RotateCcw, Plus, Filter } from "lucide-react";
 import toast from "react-hot-toast";
 
 const CATEGORIES = [
@@ -13,19 +11,15 @@ const CATEGORIES = [
     'Education', 'Sports', 'Nature', 'Science', 'Art', 'Music'
 ];
 
+const DIFFICULTY_LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
+
 const HomePage = () => {
     const { authUser } = useAuthStore();
 
-    const [flashcards, setFlashcards] = useState([]);
+    const [allFlashcards, setAllFlashcards] = useState([]); // ВСІ картки з серверу
+    const [filteredFlashcards, setFilteredFlashcards] = useState([]); // Відфільтровані картки
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    const [pagination, setPagination] = useState({
-        currentPage: 0,
-        totalPages: 0,
-        totalElements: 0,
-        pageSize: 12
-    });
 
     const [search, setSearch] = useState("");
     const [filters, setFilters] = useState({
@@ -35,58 +29,15 @@ const HomePage = () => {
         sortDir: "asc"
     });
 
-    const fetchFlashcards = useCallback(async (page = 0) => {
+    // ЗАВАНТАЖУЄМО ВСІ КАРТКИ ОДИН РАЗ
+    const fetchAllFlashcards = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            let endpoint = '/flashcards';
-            const params = new URLSearchParams({
-                page: page.toString(),
-                size: pagination.pageSize.toString(),
-                sortBy: filters.sortBy,
-                sortDir: filters.sortDir
-            });
-
-            // Handle search
-            if (search) {
-                endpoint = '/flashcards/search';
-                params.append("searchTerm", search);
-            }
-
-            // Handle category filter
-            if (filters.category && !search) {
-                endpoint = `/flashcards/category/${filters.category}`;
-            }
-
-            // Add difficulty filter if supported by API
-            if (filters.difficulty) {
-                params.append("difficulty", filters.difficulty);
-            }
-
-            const response = await axiosInstance.get(`${endpoint}?${params}`);
-
-            // Handle different response formats
-            if (response.data.content) {
-                // Paginated response
-                setFlashcards(response.data.content);
-                setPagination({
-                    currentPage: response.data.number,
-                    totalPages: response.data.totalPages,
-                    totalElements: response.data.totalElements,
-                    pageSize: response.data.size
-                });
-            } else {
-                // Simple array response
-                setFlashcards(response.data);
-                setPagination({
-                    currentPage: 0,
-                    totalPages: Math.ceil(response.data.length / pagination.pageSize),
-                    totalElements: response.data.length,
-                    pageSize: pagination.pageSize
-                });
-            }
-
+            const response = await axiosInstance.get('/flashcards');
+            setAllFlashcards(response.data);
+            setFilteredFlashcards(response.data);
         } catch (error) {
             console.error("Failed to fetch flashcards:", error);
             setError("Failed to load flashcards. Please try again.");
@@ -94,253 +45,290 @@ const HomePage = () => {
         } finally {
             setLoading(false);
         }
-    }, [search, filters, pagination.pageSize]);
+    }, []);
 
+    // Завантажуємо картки один раз
     useEffect(() => {
-        fetchFlashcards(0);
-    }, [search, filters]);
+        fetchAllFlashcards();
+    }, [fetchAllFlashcards]);
 
-    const handleSearch = useCallback((searchValue) => {
-        setSearch(searchValue);
-    }, []);
+    // ФІЛЬТРАЦІЯ НА КЛІЄНТІ
+    useEffect(() => {
+        let filtered = [...allFlashcards];
 
-    const handleFiltersChange = useCallback((newFilters) => {
-        setFilters(newFilters);
-    }, []);
+        // Пошук
+        if (search.trim()) {
+            const searchLower = search.toLowerCase().trim();
+            filtered = filtered.filter(card =>
+                card.englishWord.toLowerCase().includes(searchLower) ||
+                card.translation.toLowerCase().includes(searchLower) ||
+                (card.definition && card.definition.toLowerCase().includes(searchLower)) ||
+                (card.exampleSentence && card.exampleSentence.toLowerCase().includes(searchLower)) ||
+                card.category.toLowerCase().includes(searchLower)
+            );
+        }
 
-    const handleFiltersClear = useCallback(() => {
+        // Фільтр по категорії
+        if (filters.category) {
+            filtered = filtered.filter(card =>
+                card.category.toLowerCase() === filters.category.toLowerCase()
+            );
+        }
+
+        // Фільтр по складності
+        if (filters.difficulty) {
+            filtered = filtered.filter(card =>
+                card.difficulty && card.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
+            );
+        }
+
+        // Сортування
+        filtered.sort((a, b) => {
+            let aValue = a[filters.sortBy] || '';
+            let bValue = b[filters.sortBy] || '';
+
+            if (typeof aValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            }
+
+            if (filters.sortDir === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+
+        setFilteredFlashcards(filtered);
+    }, [allFlashcards, search, filters]);
+
+    const handleSearch = (searchTerm) => {
+        setSearch(searchTerm);
+    };
+
+    const handleFilterChange = (newFilters) => {
+        setFilters(prev => ({ ...prev, ...newFilters }));
+    };
+
+    const resetFilters = () => {
+        setSearch("");
         setFilters({
             category: "",
             difficulty: "",
             sortBy: "englishWord",
             sortDir: "asc"
         });
-        setSearch("");
-    }, []);
+    };
 
-    const handlePageChange = useCallback((page) => {
-        fetchFlashcards(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [fetchFlashcards]);
-
-    const hasActiveFilters = search || filters.category || filters.difficulty;
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="text-center">
+                    <Loader className="size-12 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600">Loading flashcards...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-                {/* Hero Section */}
-                <div className="text-center mb-12">
-                    <div className="flex justify-center items-center mb-6">
-                        <div className="bg-blue-600 p-4 rounded-full">
-                            <Brain className="h-12 w-12 text-white" />
-                        </div>
-                    </div>
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                        Welcome to FlashEng
-                    </h1>
-                    <p className="text-xl text-gray-600 mb-6">
-                        Master English vocabulary with interactive flashcards
-                    </p>
-                    <div className="flex justify-center space-x-4">
-                        <a
-                            href="/flashcards"
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            <BookOpen className="h-5 w-5 mr-2" />
-                            Browse All Cards
-                        </a>
-                        {authUser && (
-                            <a
-                                href="/flashcards"
-                                className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                                <Plus className="h-5 w-5 mr-2" />
-                                Create Card
-                            </a>
-                        )}
-                    </div>
-                </div>
-
-                {/* Search and Filters */}
-                <div className="mb-8 space-y-6">
-                    <SearchBar
-                        value={search}
-                        onChange={handleSearch}
-                        placeholder="Search flashcards by English word or translation..."
-                    />
-
-                    <Filters
-                        filters={filters}
-                        onChange={handleFiltersChange}
-                        onClear={handleFiltersClear}
-                        type="flashcards"
-                        categories={CATEGORIES}
-                    />
-                </div>
-
-                {/* Error State */}
-                {error && (
-                    <div className="mb-8">
-                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <AlertCircle className="h-5 w-5 text-red-400" />
-                                </div>
-                                <div className="ml-3">
-                                    <h3 className="text-sm font-medium text-red-800">
-                                        Error loading flashcards
-                                    </h3>
-                                    <div className="mt-2 text-sm text-red-700">
-                                        <p>{error}</p>
-                                    </div>
-                                    <div className="mt-4">
-                                        <button
-                                            onClick={() => fetchFlashcards(pagination.currentPage)}
-                                            className="bg-red-100 text-red-800 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
-                                        >
-                                            Try Again
-                                        </button>
-                                    </div>
-                                </div>
+        <div className="min-h-screen bg-gray-50 py-8">
+            <div className="container mx-auto px-4 max-w-7xl">
+                {/* Header */}
+                <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
+                        <div className="flex items-center space-x-4 mb-4 md:mb-0">
+                            <div className="bg-blue-100 p-3 rounded-full">
+                                <BookOpen className="h-8 w-8 text-blue-600" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-800">FlashEng</h1>
+                                <p className="text-gray-600">Master English with interactive flashcards</p>
                             </div>
                         </div>
-                    </div>
-                )}
 
-                {/* Loading State */}
-                {loading && flashcards.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                        <Loader className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-                        <p className="text-gray-600">Loading flashcards...</p>
-                    </div>
-                )}
-
-                {/* Empty State */}
-                {!loading && flashcards.length === 0 && !error && (
-                    <div className="text-center py-12">
-                        <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            No flashcards found
-                        </h3>
-                        <p className="text-gray-500 mb-6">
-                            {hasActiveFilters
-                                ? "Try adjusting your search or filters"
-                                : "No flashcards available at the moment"
-                            }
-                        </p>
-                        {hasActiveFilters && (
-                            <button
-                                onClick={handleFiltersClear}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                            >
-                                Clear Filters
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Results Count */}
-                {!loading && flashcards.length > 0 && (
-                    <div className="mb-6">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-700">
-                                {pagination.totalElements > 0 ? (
+                        <div className="flex items-center space-x-3">
+                            <div className="text-sm text-gray-500">
+                                {search || filters.category || filters.difficulty ? (
                                     <>
-                                        Showing{" "}
-                                        <span className="font-medium">
-                                            {pagination.currentPage * pagination.pageSize + 1}
-                                        </span>{" "}
-                                        to{" "}
-                                        <span className="font-medium">
-                                            {Math.min(
-                                                (pagination.currentPage + 1) * pagination.pageSize,
-                                                pagination.totalElements
-                                            )}
-                                        </span>{" "}
-                                        of{" "}
-                                        <span className="font-medium">
-                                            {pagination.totalElements}
-                                        </span>{" "}
-                                        flashcards
+                                        {filteredFlashcards.length} of {allFlashcards.length} cards
                                     </>
                                 ) : (
-                                    `${flashcards.length} flashcards found`
+                                    <>{allFlashcards.length} cards available</>
                                 )}
-                            </p>
+                            </div>
 
-                            {flashcards.length > 0 && (
+                            {authUser && (
                                 <a
-                                    href="/flashcards"
-                                    className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                                    href='/flashcards'
+                                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                 >
-                                    <RotateCcw className="h-4 w-4 mr-1" />
-                                    Start Practice Session
+                                    <Plus className="mr-2" size={18} />
+                                    Create Card
                                 </a>
                             )}
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Flashcards Grid */}
-                {!loading && flashcards.length > 0 && (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                            {flashcards.map((flashcard) => (
-                                <FlashCard
-                                    key={flashcard.flashcardId}
-                                    flashcard={flashcard}
-                                    onEdit={null} // Home page is read-only
-                                    onDelete={null} // Home page is read-only
-                                />
-                            ))}
-                        </div>
-
-                        {/* Pagination */}
-                        {pagination.totalPages > 1 && (
-                            <Pagination
-                                currentPage={pagination.currentPage}
-                                totalPages={pagination.totalPages}
-                                totalElements={pagination.totalElements}
-                                pageSize={pagination.pageSize}
-                                onPageChange={handlePageChange}
+                {/* Search and Filters */}
+                <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+                    <div className="space-y-4">
+                        {/* Search */}
+                        <div>
+                            <SearchBar
+                                onSearch={handleSearch}
+                                placeholder="Search flashcards by word, translation, or category..."
                             />
-                        )}
-                    </>
-                )}
+                        </div>
 
-                {/* Quick Stats */}
-                {!loading && flashcards.length > 0 && (
-                    <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                            FlashEng Statistics
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="text-center">
-                                <div className="text-2xl font-bold text-blue-600">
-                                    {pagination.totalElements || flashcards.length}
-                                </div>
-                                <div className="text-sm text-gray-500">Total Cards</div>
+                        {/* Filters Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Category Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Category
+                                </label>
+                                <select
+                                    value={filters.category}
+                                    onChange={(e) => handleFilterChange({ category: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">All Categories</option>
+                                    {CATEGORIES.map(category => (
+                                        <option key={category} value={category}>{category}</option>
+                                    ))}
+                                </select>
                             </div>
-                            <div className="text-center">
-                                <div className="text-2xl font-bold text-green-600">
-                                    {new Set(flashcards.map(card => card.category)).size}
-                                </div>
-                                <div className="text-sm text-gray-500">Categories</div>
+
+                            {/* Difficulty Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Difficulty
+                                </label>
+                                <select
+                                    value={filters.difficulty}
+                                    onChange={(e) => handleFilterChange({ difficulty: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">All Levels</option>
+                                    {DIFFICULTY_LEVELS.map(level => (
+                                        <option key={level} value={level}>{level}</option>
+                                    ))}
+                                </select>
                             </div>
-                            <div className="text-center">
-                                <div className="text-2xl font-bold text-purple-600">
-                                    {authUser ? flashcards.filter(card => card.userId === authUser.id).length : 0}
-                                </div>
-                                <div className="text-sm text-gray-500">Your Cards</div>
+
+                            {/* Sort By */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Sort By
+                                </label>
+                                <select
+                                    value={filters.sortBy}
+                                    onChange={(e) => handleFilterChange({ sortBy: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="englishWord">English Word</option>
+                                    <option value="translation">Translation</option>
+                                    <option value="category">Category</option>
+                                    <option value="difficulty">Difficulty</option>
+                                    <option value="createdAt">Date Created</option>
+                                </select>
                             </div>
-                            <div className="text-center">
-                                <div className="text-2xl font-bold text-orange-600">
-                                    {Math.floor(Math.random() * 50) + 10}
-                                </div>
-                                <div className="text-sm text-gray-500">Users Learning</div>
+
+                            {/* Sort Direction */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Order
+                                </label>
+                                <select
+                                    value={filters.sortDir}
+                                    onChange={(e) => handleFilterChange({ sortDir: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="asc">A → Z</option>
+                                    <option value="desc">Z → A</option>
+                                </select>
                             </div>
                         </div>
+
+                        {/* Active filters display and clear button */}
+                        {(search || filters.category || filters.difficulty) && (
+                            <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-200">
+                                <span className="text-sm font-medium text-gray-700">Active filters:</span>
+                                {search && (
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                        Search: "{search}"
+                                    </span>
+                                )}
+                                {filters.category && (
+                                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                                        Category: {filters.category}
+                                    </span>
+                                )}
+                                {filters.difficulty && (
+                                    <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                                        Level: {filters.difficulty}
+                                    </span>
+                                )}
+                                <button
+                                    onClick={resetFilters}
+                                    className="flex items-center px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
+                                >
+                                    <RotateCcw size={14} className="mr-1" />
+                                    Clear all
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Content */}
+                {error ? (
+                    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">Error Loading Flashcards</h3>
+                        <p className="text-gray-600 mb-4">{error}</p>
+                        <button
+                            onClick={fetchAllFlashcards}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Try Again
+                        </button>
+                    </div>
+                ) : filteredFlashcards.length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                        <Brain className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                            {search || filters.category || filters.difficulty ?
+                                "No flashcards found" :
+                                "No flashcards available"
+                            }
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                            {search || filters.category || filters.difficulty ?
+                                "Try adjusting your search criteria or filters." :
+                                "Get started by creating your first flashcard!"
+                            }
+                        </p>
+                        {authUser && (
+                            <a
+                                href='/flashcards'
+                                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Create Your First Card
+                            </a>
+                        )}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                        {filteredFlashcards.map((flashcard) => (
+                            <FlashCard
+                                key={flashcard.flashcardId}
+                                flashcard={flashcard}
+                                showActions={false} // На домашній сторінці не показуємо кнопки редагування
+                            />
+                        ))}
                     </div>
                 )}
             </div>
