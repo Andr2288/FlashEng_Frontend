@@ -3,7 +3,7 @@
 import axios from "axios";
 
 // FlashEng API Configuration
-const FLASHENG_API_BASE = 'http://localhost:7288/api';
+const FLASHENG_API_BASE = 'http://localhost:5058/api';
 
 export const axiosInstance = axios.create({
     baseURL: FLASHENG_API_BASE,
