@@ -1,0 +1,134 @@
+/* FlashCard CSS Styles - додати до globals.css або окремого файлу */
+
+/* Flip Card Animation */
+.perspective-1000 {
+    perspective: 1000px;
+}
+
+.flashcard {
+    width: 100%;
+    height: 300px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+    cursor: pointer;
+}
+
+.flashcard.flipped {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.flashcard:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* FlashCard Category Badge */
+.flashcard-category {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* FlashCard Actions */
+.flashcard-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.flashcard:hover .flashcard-actions {
+    opacity: 1;
+}
+
+/* Training Mode */
+.training-progress {
+    background: linear-gradient(to right, #3b82f6 var(--progress), #e5e7eb var(--progress));
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+}
+
+/* Responsive Grid */
+.flashcards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .flashcards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .flashcard {
+        height: 250px;
+    }
+
+    .flashcard-front,
+    .flashcard-back {
+        padding: 16px;
+    }
+}
+
+/* Animation for card entrance */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.flashcard-enter {
+    animation: slideInUp 0.3s ease-out;
+}
+
+/* Skeleton loading */
+.flashcard-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}

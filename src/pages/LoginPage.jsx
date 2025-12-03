@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore.js";
-import { Eye, EyeOff, Mail, Lock, Loader } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader, Brain, BookOpen } from "lucide-react";
 
 const LoginPage = () => {
     const [formData, setFormData] = useState({
@@ -44,14 +44,14 @@ const LoginPage = () => {
         }
     };
 
-    const handleInputChange = (e) => {
+    const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
 
-        // Clear error when user starts typing
+        // Clear errors when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
                 ...prev,
@@ -61,24 +61,34 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="max-w-md w-full space-y-8 p-8">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 flex items-center justify-center px-4">
+            <div className="max-w-md w-full space-y-8">
+                {/* Logo and Header */}
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold text-gray-900">Sign In</h2>
-                    <p className="mt-2 text-gray-600">Welcome back to our store</p>
+                    <div className="flex justify-center items-center mb-6">
+                        <div className="bg-blue-600 p-4 rounded-full shadow-lg">
+                            <Brain className="h-10 w-10 text-white" />
+                        </div>
+                    </div>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">FlashEng</h1>
+                    <p className="text-xl text-gray-600 mb-8">Master English with Smart Flashcards</p>
+                    <h2 className="text-2xl font-bold text-gray-900">Welcome Back!</h2>
+                    <p className="text-gray-600">Sign in to continue your learning journey</p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    {errors.general && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                            {errors.general}
-                        </div>
-                    )}
+                {/* Login Form */}
+                <div className="bg-white rounded-xl shadow-lg p-8">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* General Error */}
+                        {errors.general && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <p className="text-red-600 text-sm">{errors.general}</p>
+                            </div>
+                        )}
 
-                    <div className="space-y-4">
                         {/* Email Field */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                                 Email Address
                             </label>
                             <div className="relative">
@@ -89,12 +99,10 @@ const LoginPage = () => {
                                     id="email"
                                     name="email"
                                     type="email"
-                                    autoComplete="email"
-                                    required
                                     value={formData.email}
-                                    onChange={handleInputChange}
-                                    className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                        errors.email ? 'border-red-300' : 'border-gray-300'
+                                    onChange={handleChange}
+                                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                                        errors.email ? 'border-red-500' : 'border-gray-300'
                                     }`}
                                     placeholder="Enter your email"
                                 />
@@ -106,7 +114,7 @@ const LoginPage = () => {
 
                         {/* Password Field */}
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                                 Password
                             </label>
                             <div className="relative">
@@ -117,12 +125,10 @@ const LoginPage = () => {
                                     id="password"
                                     name="password"
                                     type={showPassword ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    required
                                     value={formData.password}
-                                    onChange={handleInputChange}
-                                    className={`block w-full pl-10 pr-10 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                        errors.password ? 'border-red-300' : 'border-gray-300'
+                                    onChange={handleChange}
+                                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                                        errors.password ? 'border-red-500' : 'border-gray-300'
                                     }`}
                                     placeholder="Enter your password"
                                 />
@@ -142,31 +148,76 @@ const LoginPage = () => {
                                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                             )}
                         </div>
-                    </div>
 
-                    <div>
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={isLoggingIn}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {isLoggingIn ? (
-                                <Loader className="animate-spin h-5 w-5" />
+                                <>
+                                    <Loader className="animate-spin h-5 w-5 mr-2" />
+                                    Signing In...
+                                </>
                             ) : (
-                                "Sign In"
+                                <>
+                                    <BookOpen className="h-5 w-5 mr-2" />
+                                    Sign In to FlashEng
+                                </>
                             )}
                         </button>
-                    </div>
 
-                    <div className="text-center">
-                        <p className="text-sm text-gray-600">
-                            Don't have an account?{" "}
-                            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-                                Sign up here
-                            </Link>
-                        </p>
+                        {/* Demo Accounts */}
+                        <div className="bg-blue-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-blue-900 mb-2">Demo Accounts:</h4>
+                            <div className="text-xs text-blue-700 space-y-1">
+                                <p><strong>User:</strong> user@flasheng.com / password123</p>
+                                <p><strong>Admin:</strong> admin@flasheng.com / admin123</p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                {/* Sign Up Link */}
+                <div className="text-center">
+                    <p className="text-gray-600">
+                        Don't have an account?{" "}
+                        <Link
+                            to="/register"
+                            className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                        >
+                            Create your FlashEng account
+                        </Link>
+                    </p>
+                </div>
+
+                {/* Features */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+                        Why Choose FlashEng?
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-green-100 p-2 rounded-full">
+                                <BookOpen className="h-4 w-4 text-green-600" />
+                            </div>
+                            <span className="text-sm text-gray-700">Interactive flashcard learning</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-purple-100 p-2 rounded-full">
+                                <Brain className="h-4 w-4 text-purple-600" />
+                            </div>
+                            <span className="text-sm text-gray-700">Spaced repetition algorithm</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-blue-100 p-2 rounded-full">
+                                <div className="h-4 w-4 bg-blue-600 rounded-full"></div>
+                            </div>
+                            <span className="text-sm text-gray-700">Progress tracking & statistics</span>
+                        </div>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

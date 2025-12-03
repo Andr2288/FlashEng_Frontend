@@ -11,39 +11,38 @@ export const useAuthStore = create((set, get) => ({
 
     checkAuth: async () => {
         try {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("flasheng_token");
             if (!token) {
-                console.log("No token found, user not authenticated");
+                console.log("No FlashEng token found, user not authenticated");
                 set({authUser: null, isCheckingAuth: false});
                 return;
             }
 
-            console.log("Checking auth with token:", token?.substring(0, 20) + "...");
+            console.log("Checking FlashEng auth with token:", token?.substring(0, 20) + "...");
+
+            // Set Authorization header
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             const res = await axiosInstance.get("/auth/check");
 
-            console.log("Auth check response RAW:", res);
-            console.log("Auth check response DATA:", res.data);
-            console.log("Auth check response isAdmin field:", res.data.isAdmin);
-            console.log("Type of isAdmin:", typeof res.data.isAdmin);
-            console.log("JSON stringify:", JSON.stringify(res.data));
+            console.log("FlashEng auth check response:", res.data);
 
-            // ВИПРАВЛЕННЯ: Backend повертає "admin" замість "isAdmin"
             set({
                 authUser: {
+                    id: res.data.id,
                     name: res.data.name,
                     email: res.data.email,
-                    phone: res.data.phone || null, // phone може не повертатися з /auth/check
-                    isAdmin: Boolean(res.data.admin || res.data.isAdmin) // Перевіряємо обидва поля
+                    isAdmin: Boolean(res.data.isAdmin)
                 },
                 isCheckingAuth: false
             });
 
-            console.log("Auth check successful, user authenticated with isAdmin:", Boolean(res.data.admin || res.data.isAdmin));
+            console.log("FlashEng auth check successful, user:", res.data.name, "isAdmin:", res.data.isAdmin);
         }
         catch (error) {
-            console.log("Error in checkAuth:", error.response?.status, error.response?.data);
-            localStorage.removeItem("token");
+            console.log("FlashEng auth check failed:", error.response?.status, error.response?.data);
+            localStorage.removeItem("flasheng_token");
+            delete axiosInstance.defaults.headers.common['Authorization'];
             set({authUser: null, isCheckingAuth: false});
         }
     },
@@ -51,30 +50,40 @@ export const useAuthStore = create((set, get) => ({
     signup: async (userData) => {
         set({isSigningUp: true});
         try {
-            console.log("Signing up user:", userData.name);
+            console.log("FlashEng signup for user:", userData.name);
 
-            const res = await axiosInstance.post("/auth/register", userData);
+            // Map frontend form data to FlashEng API format
+            const signupData = {
+                name: userData.name,
+                email: userData.email,
+                password: userData.password,
+                phone: userData.phone
+            };
 
-            console.log("Signup response:", res.data);
+            const res = await axiosInstance.post("/auth/register", signupData);
 
-            // Store JWT token
-            localStorage.setItem("token", res.data.token);
+            console.log("FlashEng signup response:", res.data);
+
+            // Store FlashEng JWT token
+            const token = res.data.token;
+            localStorage.setItem("flasheng_token", token);
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             // Set user data
             set({
                 authUser: {
+                    id: res.data.id,
                     name: res.data.name,
                     email: res.data.email,
-                    phone: userData.phone, // Беремо з запиту, бо backend не повертає
-                    isAdmin: Boolean(res.data.admin || res.data.isAdmin) // Backend повертає "admin"
+                    isAdmin: Boolean(res.data.isAdmin)
                 },
                 isSigningUp: false
             });
 
-            console.log("Signup successful, user:", res.data.name, "isAdmin:", Boolean(res.data.admin || res.data.isAdmin));
-            toast.success("Account created successfully!");
+            console.log("FlashEng signup successful for:", res.data.name, "isAdmin:", res.data.isAdmin);
+            toast.success(`Welcome to FlashEng, ${res.data.name}!`);
         } catch (error) {
-            console.log("Signup error:", error.response?.data);
+            console.log("FlashEng signup error:", error.response?.data);
             set({isSigningUp: false});
             const errorMessage = error.response?.data?.message || "Registration failed";
             toast.error(errorMessage);
@@ -85,34 +94,32 @@ export const useAuthStore = create((set, get) => ({
     login: async (credentials) => {
         set({isLoggingIn: true});
         try {
-            console.log("Logging in user:", credentials.email);
+            console.log("FlashEng login for user:", credentials.email);
 
             const res = await axiosInstance.post("/auth/login", credentials);
 
-            console.log("Login response RAW:", res);
-            console.log("Login response DATA:", res.data);
-            console.log("Login response isAdmin field:", res.data.isAdmin);
-            console.log("Type of isAdmin:", typeof res.data.isAdmin);
-            console.log("JSON stringify:", JSON.stringify(res.data));
+            console.log("FlashEng login response:", res.data);
 
-            // Store JWT token
-            localStorage.setItem("token", res.data.token);
+            // Store FlashEng JWT token
+            const token = res.data.token;
+            localStorage.setItem("flasheng_token", token);
+            axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             // Set user data
             set({
                 authUser: {
+                    id: res.data.id,
                     name: res.data.name,
                     email: res.data.email,
-                    phone: res.data.phone || null, // Login може не повертати phone
-                    isAdmin: Boolean(res.data.admin || res.data.isAdmin) // Backend повертає "admin"
+                    isAdmin: Boolean(res.data.isAdmin)
                 },
                 isLoggingIn: false
             });
 
-            console.log("Login successful, user:", res.data.name, "isAdmin:", Boolean(res.data.admin || res.data.isAdmin));
-            toast.success(`Welcome back, ${res.data.name}!`);
+            console.log("FlashEng login successful for:", res.data.name, "isAdmin:", res.data.isAdmin);
+            toast.success(`Welcome back to FlashEng, ${res.data.name}!`);
         } catch (error) {
-            console.log("Login error:", error.response?.data);
+            console.log("FlashEng login error:", error.response?.data);
             set({isLoggingIn: false});
             const errorMessage = error.response?.data?.message || "Login failed";
             toast.error(errorMessage);
@@ -120,31 +127,91 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
-    logout: () => {
-        localStorage.removeItem("token");
+    logout: async () => {
+        try {
+            // Try to call logout endpoint
+            await axiosInstance.post("/auth/logout");
+        } catch (error) {
+            console.log("Logout endpoint call failed:", error);
+            // Continue with local logout even if API call fails
+        }
+
+        // Clear local storage and auth state
+        localStorage.removeItem("flasheng_token");
+        delete axiosInstance.defaults.headers.common['Authorization'];
         set({authUser: null});
-        toast.success("Logged out successfully");
+        toast.success("Logged out from FlashEng successfully");
     },
 
     updateProfile: async (userData) => {
         set({isUpdatingProfile: true});
         try {
-            const res = await axiosInstance.put("/profile", userData);
+            const currentUser = get().authUser;
+            if (!currentUser) {
+                throw new Error("No authenticated user");
+            }
 
-            set({
-                authUser: {
-                    ...get().authUser,
-                    ...res.data
-                },
-                isUpdatingProfile: false
+            // Use Users API to update profile
+            const res = await axiosInstance.put(`/users/${currentUser.id}`, {
+                fullName: userData.name || userData.fullName,
+                email: userData.email
             });
 
-            toast.success("Profile updated successfully!");
+            // Refresh user data
+            await get().checkAuth();
+
+            set({isUpdatingProfile: false});
+            toast.success("FlashEng profile updated successfully!");
         } catch (error) {
             set({isUpdatingProfile: false});
             const errorMessage = error.response?.data?.message || "Profile update failed";
             toast.error(errorMessage);
             throw new Error(errorMessage);
         }
+    },
+
+    // Helper method to get current user ID
+    getCurrentUserId: () => {
+        const authUser = get().authUser;
+        return authUser?.id || null;
+    },
+
+    // Helper method to check if user is admin
+    isUserAdmin: () => {
+        const authUser = get().authUser;
+        return authUser?.isAdmin || false;
     }
 }));
+
+// Set up axios interceptor to automatically include auth token
+axiosInstance.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem("flasheng_token");
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Set up response interceptor for auth errors
+axiosInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem("flasheng_token");
+            delete axiosInstance.defaults.headers.common['Authorization'];
+            useAuthStore.getState().set({ authUser: null });
+
+            // Redirect to login if not already there
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);

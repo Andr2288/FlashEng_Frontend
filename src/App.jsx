@@ -9,7 +9,8 @@ import BasketPage from "./pages/BasketPage.jsx";
 import CheckoutPage from "./pages/CheckoutPage.jsx";
 import OrdersHistoryPage from "./pages/OrdersHistoryPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import AdminArticlesPage from "./pages/AdminArticlesPage.jsx";
+import FlashCardsPage from "./pages/FlashCardsPage.jsx";
+import AdminFlashcardsPage from "./pages/AdminFlashcardsPage.jsx";
 import AdminOrdersPage from "./pages/AdminOrdersPage.jsx";
 
 import {useAuthStore} from "./store/useAuthStore.js";
@@ -50,10 +51,24 @@ const App = () => {
                     element={!authUser ? <SignUpPage /> : <Navigate to="/home" />}
                 />
 
+                {/* Root redirect */}
+                <Route
+                    path="/"
+                    element={authUser ? <Navigate to="/home" /> : <Navigate to="/login" />}
+                />
+
                 {/* Protected routes - redirect to login if not authenticated */}
                 <Route
                     path="/home"
                     element={authUser ? <HomePage /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/flashcards"
+                    element={authUser ? <FlashCardsPage /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/cards"
+                    element={authUser ? <FlashCardsPage /> : <Navigate to="/login" />}
                 />
                 <Route
                     path="/cart"
@@ -74,16 +89,15 @@ const App = () => {
 
                 {/* Admin routes - redirect to login if not authenticated, to home if not admin */}
                 <Route
-                    path="/admin/articles"
+                    path="/admin/flashcards"
                     element={
                         authUser
                             ? authUser.isAdmin
-                                ? <AdminArticlesPage />
+                                ? <AdminFlashcardsPage />
                                 : <Navigate to="/home" />
                             : <Navigate to="/login" />
                     }
                 />
-
                 <Route
                     path="/admin/orders"
                     element={
@@ -95,20 +109,24 @@ const App = () => {
                     }
                 />
 
-                {/* Default redirects */}
+                {/* Legacy routes - redirect for compatibility */}
                 <Route
-                    path="/"
-                    element={<Navigate to={authUser ? "/home" : "/login"} />}
+                    path="/admin/articles"
+                    element={<Navigate to="/admin/flashcards" replace />}
+                />
+                <Route
+                    path="/articles"
+                    element={<Navigate to="/flashcards" replace />}
                 />
 
-                {/* Catch all unknown routes */}
+                {/* Catch-all route - redirect to home or login */}
                 <Route
                     path="*"
-                    element={<Navigate to={authUser ? "/home" : "/login"} />}
+                    element={authUser ? <Navigate to="/home" /> : <Navigate to="/login" />}
                 />
             </Routes>
         </div>
     )
 }
 
-export default App
+export default App;
