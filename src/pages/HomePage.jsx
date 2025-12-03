@@ -40,7 +40,7 @@ const HomePage = () => {
             setLoading(true);
             setError(null);
 
-            let endpoint = '/api/flashcards';
+            let endpoint = '/flashcards';
             const params = new URLSearchParams({
                 page: page.toString(),
                 size: pagination.pageSize.toString(),
@@ -50,13 +50,13 @@ const HomePage = () => {
 
             // Handle search
             if (search) {
-                endpoint = '/api/flashcards/search';
+                endpoint = '/flashcards/search';
                 params.append("searchTerm", search);
             }
 
             // Handle category filter
             if (filters.category && !search) {
-                endpoint = `/api/flashcards/category/${filters.category}`;
+                endpoint = `/flashcards/category/${filters.category}`;
             }
 
             // Add difficulty filter if supported by API
@@ -288,7 +288,7 @@ const HomePage = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
                             {flashcards.map((flashcard) => (
                                 <FlashCard
-                                    key={flashcard.id}
+                                    key={flashcard.flashcardId}
                                     flashcard={flashcard}
                                     onEdit={null} // Home page is read-only
                                     onDelete={null} // Home page is read-only
